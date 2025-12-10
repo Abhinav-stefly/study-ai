@@ -1,14 +1,18 @@
-const documentSchema = new mongoose.Schema(
+import mongoose from "mongoose";
+
+
+const docSchema = new mongoose.Schema(
 {
 user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 originalName: { type: String, required: true },
 fileUrl: { type: String, required: true },
-extractedText: { type: String },
+fileType: { type: String, required: true },
+aiText: { type: String },
 summary: { type: String },
-category: { type: String },
+metadata: { type: Object },
 },
 { timestamps: true }
 );
 
 
-export const Document = mongoose.model("Document", documentSchema);
+export default mongoose.model("Document", docSchema);
