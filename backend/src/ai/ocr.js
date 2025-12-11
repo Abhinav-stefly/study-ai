@@ -1,44 +1,58 @@
-// ...existing code...
-import fetch from "node-fetch";
+import Tesseract from "tesseract.js";
+import axios from "axios";
+import fsp from "fs/promises"; // Use fsp for promise-based file read in pdf-parse
+import { createRequire } from 'module'; 
 
-// This module uses OCR.space API as the default OCR engine.
-// If you prefer Google Vision / AWS Textract / tesseract.js you can replace this implementation.
+// Use createRequire to import CommonJS libraries like pdf-parse in ES Modules
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
-export const runOCR = async (fileUrl) => {
-  const OCR_API_KEY = process.env.OCR_SPACE_API_KEY; // put in .env
-  if (!OCR_API_KEY) throw new Error("OCR_SPACE_API_KEY not set in .env");
-
-  const formData = new URLSearchParams();
-  formData.append("apikey", OCR_API_KEY);
-  formData.append("url", fileUrl);
-  formData.append("language", "eng");
-  formData.append("isOverlayRequired", "false");
-
-  const res = await fetch("https://api.ocr.space/parse/image", {
-    method: "POST",
-    body: formData,
-    // node-fetch will set the appropriate headers for URLSearchParams
-  });
-
-  if (!res.ok) {
-    throw new Error(`OCR API request failed: ${res.status} ${res.statusText}`);
-  }
-
-  let json;
-  try {
-    json = await res.json();
-  } catch (err) {
-    throw new Error("Failed to parse OCR API response as JSON");
-  }
-
-  if (!json || json.OCRExitCode !== 1) {
-    const errorMessage = Array.isArray(json?.ErrorMessage)
-      ? json.ErrorMessage.join(", ")
-      : json?.ErrorMessage || JSON.stringify(json);
-    throw new Error("OCR failed: " + errorMessage);
-  }
-
-  const parsed = (json.ParsedResults?.map((p) => p.ParsedText).join("\n")) || "";
-  return parsed.trim();
+/**
+ * Extracts text directly from a PDF file using a local file path.
+ * * @param {string} filePath - The local file path where the PDF is temporarily saved.
+ * @returns {Promise<string>} - The extracted text.
+ */
+export const extractTextFromPDF = async (filePath) => {
+    try {
+        // Use fsp (promises API) to read the file buffer
+        const dataBuffer = await fsp.readFile(filePath);
+        const data = await pdfParse(dataBuffer);
+        return data.text || "";
+    } catch (err) {
+        console.error("Local PDF Text Extraction Error:", err.message);
+        return "";
+    }
 };
-// ...existing code...
+
+/**
+ * Extracts text from a single image URL by fetching the image into a Buffer first.
+ * (Used for image uploads only).
+ */
+export const extractTextFromImage = async (imageUrl) => {
+  try {
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+    });
+    
+    const imageBuffer = Buffer.from(response.data);
+
+    const result = await Tesseract.recognize(imageBuffer, "eng");
+
+    return result.data.text || "";
+  } catch (err) {
+    console.error(`Image OCR Error for URL ${imageUrl}:`, err.message);
+    return ""; 
+  }
+};
+
+/**
+ * Helper to process multiple images (kept for potential future image processing).
+ */
+export const extractTextFromMultipleImages = async (imageUrls) => {
+  let combinedText = "";
+  for (const url of imageUrls) {
+    const text = await extractTextFromImage(url);
+    combinedText += text + "\n\n";
+  }
+  return combinedText;
+};
