@@ -15,7 +15,7 @@ const storage = new CloudinaryStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  // allow images and PDFs by example
+  // Allow images and PDFs
   if (/^(image\/|application\/pdf)/.test(file.mimetype)) {
     cb(null, true);
   } else {
