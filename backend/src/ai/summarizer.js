@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // ai/summarizer.js
 import { pipeline } from "@xenova/transformers";
 
@@ -51,3 +52,12 @@ export async function generateSummary(text) {
         return "Error generating summary.";
     }
 }
+=======
+// ...existing code...
+export const summarizeText = async (text) => {
+  if (!text) return "";
+  const lines = text.trim().split(/\r?\n+/).filter(Boolean);
+  return lines.slice(0, 3).join(' ');
+};
+// ...existing code...
+>>>>>>> f1aafe2c642ebc316db08a8e77517dcc6925771e
