@@ -2,3 +2,8 @@ node_modules/
 
 *.onnx
 .env
+# LLM Models and Cache
+
+# This is often where Xenova or HuggingFace models download
+.huggingface/ 
+.cache/
