@@ -1,9 +1,15 @@
+# Node
 node_modules/
+npm-debug.log*
+yarn-error.log*
 
-*.onnx
+# Environment
 .env
-# LLM Models and Cache
 
-# This is often where Xenova or HuggingFace models download
-.huggingface/ 
-.cache/
+# Xenova / Transformers cache
+backend/node_modules/@xenova/
+backend/node_modules/@xenova/transformers/.cache/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,6 +1,15 @@
-backend/node_modules/
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
 
-*.onnx
-
+# Environment
 .env
 
+# Xenova / Transformers cache
+backend/node_modules/@xenova/
+backend/node_modules/@xenova/transformers/.cache/
+
+# OS
+.DS_Store
+Thumbs.db
