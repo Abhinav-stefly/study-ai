@@ -7,7 +7,7 @@ import documentRoutes from "./routes/document.routes.js";
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 import cloudinary from "./config/cloudinary.js";
 import { ENV } from "./config/env.js";
-
+import chatRoutes from "./routes/chat.routes.js";
 const app = express();
 
 // Connect DB
@@ -44,7 +44,7 @@ app.use("/api/documents", documentRoutes);
 
 // Now general middlewares
 app.use(express.json()); // safe, will not affect Multer
-
+app.use("/api", express.json(), chatRoutes); 
 app.use(notFound);
 app.use(errorHandler);
 

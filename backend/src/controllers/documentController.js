@@ -10,11 +10,14 @@ import { extractTextFromPDF, extractTextFromImage } from "../ai/ocr.js";
 import { preprocessOCRText } from "../ai/preprocess.js";
 import { generateSummary } from "../ai/summarizer.js";
 import { generateQA } from "../ai/qa.js";
+import { generateFlashcards } from "../ai/flashcards.js";
+import { getEmbedding } from "../ai/embeddings.js";
+import { chunkText } from "../utils/chunkText.js";
 
 const streamPipeline = promisify(stream.pipeline);
 
 // ---------------------------------------------------------
-// Upload + OCR + Clean + Summary + QA
+// Upload + OCR + NLP + AI Processing
 // ---------------------------------------------------------
 export const uploadDocument = async (req, res) => {
   let tempPDFPath = null;
@@ -29,14 +32,12 @@ export const uploadDocument = async (req, res) => {
     const mime = req.file.mimetype;
     let extractedText = "";
 
-    // 2️⃣ OCR PROCESSING
+    // 2️⃣ OCR
     try {
       if (mime.includes("image")) {
-        // ------------------- IMAGE OCR -------------------
         extractedText = await extractTextFromImage(fileUrl);
 
       } else if (mime.includes("pdf")) {
-        // ------------------- PDF OCR ---------------------
         const tempName = `tmp_${req.file.filename}`;
         tempPDFPath = path.join(process.cwd(), tempName);
 
@@ -50,29 +51,28 @@ export const uploadDocument = async (req, res) => {
         await streamPipeline(response.data, writer);
 
         extractedText = await extractTextFromPDF(tempPDFPath);
-      } else {
-        extractedText = "";
       }
     } catch (err) {
       console.error("OCR FAILURE:", err);
       extractedText = "";
     }
 
-    // 3️⃣ PREPROCESSING (clean text + heading extraction)
+    // 3️⃣ PREPROCESSING
     const processed = preprocessOCRText(extractedText);
-    const cleanedText = processed.cleanedText;
-    const headings = processed.headings;
+    const cleanedText = processed.cleanedText || "";
+    const headings = processed.headings || [];
 
-    // 4️⃣ SUMMARY GENERATION
+    // 4️⃣ SUMMARY
     let summary = "";
     try {
       summary = await generateSummary(cleanedText);
-    } catch (err) {
-      console.error("SUMMARY ERROR:", err);
+      summary = String(summary);
+    } catch {
       summary = "Summary generation failed.";
     }
 
-    // 5️⃣ Q&A GENERATION
+    // 5️⃣ Q&A (FIXED await bug)
+     // 5️⃣ Q&A GENERATION
  let qa = [];
 try {
     const generated = generateQA(cleanedText);
@@ -93,7 +93,28 @@ try {
 }
 
 
-    // 6️⃣ SAVE TO DATABASE
+    // 6️⃣ FLASHCARDS
+    let flashcards = [];
+    try {
+      flashcards = await generateFlashcards(cleanedText);
+    } catch {
+      flashcards = [];
+    }
+
+    // 7️⃣ VECTOR CHUNKS (for chat & semantic search)
+    const chunks = [];
+    try {
+      const textChunks = chunkText(cleanedText, 400);
+
+      for (const chunk of textChunks) {
+        const embedding = await getEmbedding(chunk);
+        chunks.push({ text: chunk, embedding });
+      }
+    } catch (err) {
+      console.error("EMBEDDING ERROR:", err);
+    }
+
+    // 8️⃣ SAVE TO DB
     const document = await Document.create({
       user: req.user._id,
       originalName: req.file.originalname,
@@ -104,6 +125,8 @@ try {
       headings,
       summary,
       qa,
+      flashcards,
+      chunks,
     });
 
     return res.status(201).json({
@@ -116,27 +139,29 @@ try {
     return res.status(500).json({ message: "Internal server error" });
 
   } finally {
-    // 7️⃣ CLEAN TEMP FILE
+    // 9️⃣ CLEAN TEMP FILE
     if (tempPDFPath) {
       try {
         await fsp.unlink(tempPDFPath);
-      } catch (e) {
+      } catch {
         console.warn("TEMP FILE REMOVE FAILED:", tempPDFPath);
       }
     }
   }
 };
 
+// ---------------------------------------------------------
+// Fetch Documents
+// ---------------------------------------------------------
 export const getDocuments = async (req, res) => {
   try {
     const documents = await Document.find({ user: req.user._id })
-      .select("-aiText -summary")   // remove heavy fields (optional)
+      .select("-aiText -chunks.embedding") // keep response light
       .lean();
 
     return res.status(200).json({ documents });
   } catch (error) {
-    console.error("Error fetching documents:", error);
+    console.error("FETCH ERROR:", error);
     return res.status(500).json({ message: "Failed to retrieve documents." });
   }
 };
-

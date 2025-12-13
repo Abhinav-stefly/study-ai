@@ -19,7 +19,18 @@ const docSchema = new mongoose.Schema(
             answer: { type: String }
         }
     ], // ⬅ ADD THIS
-
+chunks: [
+  {
+    text: String,
+    embedding: [Number]
+  }
+],
+flashcards: [
+  {
+    front: { type: String },
+    back: { type: String }
+  }
+],
     metadata: { type: Object }
 },
 { timestamps: true }
