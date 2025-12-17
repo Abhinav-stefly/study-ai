@@ -28,5 +28,8 @@ ${question}
   const model = await loadQA();
   const res = await model(prompt, { max_length: 150 });
 
-  return res[0].generated_text;
+  return {
+  answer: res[0].generated_text
+};
+
 }

@@ -13,8 +13,13 @@ const app = express();
 // Connect DB
 connectDB();
 
-// Enable CORS
-app.use(cors());
+// Enable CORS - allow requests from frontend and allow credentials
+app.use(
+  cors({
+    origin: ENV.FRONTEND_URL,
+    credentials: true,
+  })
+);
 
 // ❗ Only enables JSON parsing AFTER Multer routes
 // app.use(express.json()); ❌ REMOVE FROM HERE

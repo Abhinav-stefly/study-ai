@@ -71,26 +71,29 @@ export const uploadDocument = async (req, res) => {
       summary = "Summary generation failed.";
     }
 
-    // 5️⃣ Q&A (FIXED await bug)
-     // 5️⃣ Q&A GENERATION
- let qa = [];
-try {
-    const generated = generateQA(cleanedText);
-    const { questions } = generated;
-
-    // Flatten all types into one array of { question, answer }
-    qa = [
-        ...questions.mcq.map(q => ({ question: q.question, answer: q.options[q.answer] })),
-        ...questions.fillUps.map(q => ({ question: q.question, answer: q.answer })),
-        ...questions.trueFalse.map(q => ({ question: q.statement, answer: q.answer })),
-        ...questions.shortQA.map(q => ({ question: q.question, answer: q.answer })),
-        ...questions.longQA.map(q => ({ question: q.question, answer: q.answer })),
-    ];
-
-} catch (err) {
-    console.error("QA ERROR:", err);
-    qa = [];
-}
+    // 5️⃣ Q&A GENERATION
+    // Keep structured QA results (mcq, fillUps, trueFalse, shortQA, longQA)
+    let qa = {
+      mcq: [],
+      fillUps: [],
+      trueFalse: [],
+      shortQA: [],
+      longQA: [],
+    };
+    try {
+      const generated = await generateQA(cleanedText);
+      const { questions } = generated || {};
+      if (questions) {
+        qa.mcq = questions.mcq || [];
+        qa.fillUps = questions.fillUps || [];
+        qa.trueFalse = questions.trueFalse || [];
+        qa.shortQA = questions.shortQA || [];
+        qa.longQA = questions.longQA || [];
+      }
+    } catch (err) {
+      console.error("QA ERROR:", err);
+      // leave qa as empty structured object
+    }
 
 
     // 6️⃣ FLASHCARDS
@@ -163,5 +166,26 @@ export const getDocuments = async (req, res) => {
   } catch (error) {
     console.error("FETCH ERROR:", error);
     return res.status(500).json({ message: "Failed to retrieve documents." });
+  }
+};
+
+// ---------------------------------------------------------
+// Fetch Single Document
+// ---------------------------------------------------------
+export const getDocumentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const document = await Document.findOne({ _id: id, user: req.user._id })
+      .select("-aiText -chunks.embedding")
+      .lean();
+
+    if (!document) {
+      return res.status(404).json({ message: "Document not found." });
+    }
+
+    return res.status(200).json({ document });
+  } catch (error) {
+    console.error("FETCH SINGLE ERROR:", error);
+    return res.status(500).json({ message: "Failed to retrieve document." });
   }
 };

@@ -6,7 +6,10 @@ import Document from "../models/Document.js";
 const router = express.Router();
 
 router.post("/chat/:docId", async (req, res) => {
+ 
   const doc = await Document.findById(req.params.docId);
+   console.log("QUESTION:", req.body.question);
+  console.log("CHUNKS:", doc?.chunks?.length);
   const answer = await chatWithNotes(req.body.question, doc.chunks);
 
   res.json({ answer });
