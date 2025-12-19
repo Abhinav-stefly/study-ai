@@ -1,14 +1,3 @@
-import { pipeline } from "@xenova/transformers";
-
-let model;
-
-async function loadModel() {
-  if (!model) {
-    model = await pipeline("text2text-generation", "Xenova/t5-small");
-  }
-  return model;
-}
-
 export async function generateFlashcards(text) {
   if (!text || typeof text !== "string") return [];
 
@@ -19,11 +8,33 @@ Each flashcard should explain one key concept clearly.
 Text:
 ${text}
 `;
+  // Use Hugging Face Inference API for generation
+  try {
+    const hfModel = process.env.HF_MODEL || "google/flan-t5-large";
+    // lazy-import generateWithHF to avoid circular dependency
+    const { generateWithHF } = await import("./chat.js");
+    const out = await generateWithHF(hfModel, prompt, 300);
+    return smartParse(String(out ?? ""));
+  } catch (err) {
+    console.error("Flashcards HF generation error:", err);
+    // Fallback: extract key sentences as flashcards
+    try {
+      const sentences = String(text)
+        .replace(/\s+/g, ' ')
+        .split(/[.?!]\s+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 40);
 
-  const t5 = await loadModel();
-  const res = await t5(prompt, { max_length: 300 });
-
-  return smartParse(res[0].generated_text);
+      const cards = sentences.slice(0, 5).map((s, i) => ({
+        front: s.split(/,|;|:\s/)[0].slice(0, 80) + '...',
+        back: s
+      }));
+      return cards;
+    } catch (e) {
+      console.error('Flashcards fallback failed:', e);
+      return [];
+    }
+  }
 }
 
 function smartParse(output) {

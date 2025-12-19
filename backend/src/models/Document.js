@@ -13,12 +13,11 @@ const docSchema = new mongoose.Schema(
 
     summary: { type: String },
 
-    qa: [
-        {
-            question: { type: String },
-            answer: { type: String }
-        }
-    ], // ⬅ ADD THIS
+    // Structured QA object created at upload: { mcq: [], fillUps: [], trueFalse: [], shortQA: [], longQA: [] }
+    qa: {
+      type: Object,
+      default: {}
+    },
 chunks: [
   {
     text: String,

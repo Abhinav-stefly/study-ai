@@ -1,18 +1,5 @@
 // ai/summarizer.js
-import { pipeline } from "@xenova/transformers";
-
 let summarizer = null;
-
-// Load once (cached)
-async function loadSummarizer() {
-    if (!summarizer) {
-        summarizer = await pipeline(
-            "summarization",
-            "Xenova/distilbart-cnn-12-6"
-        );
-    }
-    return summarizer;
-}
 
 // Split long text into chunks
 function chunkText(text, chunkSize = 600) {
@@ -29,19 +16,38 @@ export async function generateSummary(text) {
             return "Not enough text to summarize.";
         }
 
-        const model = await loadSummarizer();
+        const hfModel = process.env.HF_MODEL || "google/flan-t5-large";
         const chunks = chunkText(text);
 
         let finalSummary = "";
+        try {
+            const { generateWithHF } = await import("./chat.js");
+            for (const chunk of chunks) {
+                const prompt = `Summarize the following text in 2-3 concise sentences:\n\n${chunk}`;
+                try {
+                    const out = await generateWithHF(hfModel, prompt, 120);
+                    if (out && String(out).trim()) {
+                        finalSummary += String(out).trim() + " ";
+                    }
+                } catch (errChunk) {
+                    console.warn("Summarizer chunk HF error:", errChunk?.message || errChunk);
+                    // continue with other chunks
+                }
+            }
+        } catch (err) {
+            console.error("Summarizer HF error:", err);
+        }
 
-        for (const chunk of chunks) {
-            const res = await model(chunk, {
-                max_length: 120,
-                min_length: 40,
-            });
+        finalSummary = String(finalSummary).trim();
 
-            if (Array.isArray(res) && res[0]?.summary_text) {
-                finalSummary += res[0].summary_text + " ";
+        // Fallback: if HF didn't produce anything, derive a simple summary
+        if (!finalSummary) {
+            try {
+                const sentences = String(text).split(/[.?!]\s+/).filter(s => s.trim().length > 20);
+                finalSummary = sentences.slice(0, 3).join('. ') + (sentences.length ? '.' : '');
+            } catch (err) {
+                console.error('Summarizer fallback error:', err);
+                finalSummary = 'Summary generation failed.';
             }
         }
 

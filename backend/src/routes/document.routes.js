@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 import { protect } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
-import { uploadDocument, getDocuments, getDocumentById } from "../controllers/documentController.js";
+import { uploadDocument, getDocuments, getDocumentById, regenerateDocumentAI } from "../controllers/documentController.js";
 
 const router = express.Router();
 
@@ -31,5 +31,8 @@ router.get("/", protect, getDocuments);
 
 // GET /api/documents/:id
 router.get("/:id", protect, getDocumentById);
+
+// POST /api/documents/:id/regenerate
+router.post("/:id/regenerate", protect, regenerateDocumentAI);
 
 export default router;

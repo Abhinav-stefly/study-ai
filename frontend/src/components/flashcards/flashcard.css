@@ -1,8 +1,13 @@
 .flashcard {
-  width: 280px;
+  width: 100%;
+  max-width: 280px;
   height: 180px;
   perspective: 1000px;
   cursor: pointer;
+  margin: 8px;
+  display: inline-block;
+  vertical-align: top;
+  box-sizing: border-box;
 }
 
 .flashcard-inner {

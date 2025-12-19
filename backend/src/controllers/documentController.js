@@ -14,6 +14,7 @@ import { generateFlashcards } from "../ai/flashcards.js";
 import { getEmbedding } from "../ai/embeddings.js";
 import { chunkText } from "../utils/chunkText.js";
 
+
 const streamPipeline = promisify(stream.pipeline);
 
 // ---------------------------------------------------------
@@ -187,5 +188,39 @@ export const getDocumentById = async (req, res) => {
   } catch (error) {
     console.error("FETCH SINGLE ERROR:", error);
     return res.status(500).json({ message: "Failed to retrieve document." });
+  }
+};
+
+// ---------------------------------------------------------
+// Regenerate AI outputs for an existing document (summary, QA, flashcards)
+// ---------------------------------------------------------
+export const regenerateDocumentAI = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const document = await Document.findOne({ _id: id, user: req.user._id });
+    if (!document) return res.status(404).json({ message: "Document not found." });
+
+    const text = document.cleanedText || document.aiText || "";
+
+    // regenerate
+    let summary = document.summary || "";
+    try { summary = await generateSummary(text); } catch (e) { console.warn('Regenerate summary failed', e); }
+
+    let qa = document.qa || { mcq:[], fillUps:[], trueFalse:[], shortQA:[], longQA:[] };
+    try { const generated = await generateQA(text); qa = generated.questions || qa; } catch (e) { console.warn('Regenerate QA failed', e); }
+
+    let flashcards = document.flashcards || [];
+    try { flashcards = await generateFlashcards(text); } catch (e) { console.warn('Regenerate flashcards failed', e); }
+
+    document.summary = summary;
+    document.qa = qa;
+    document.flashcards = flashcards;
+
+    await document.save();
+
+    return res.status(200).json({ message: 'Regenerated AI outputs', document });
+  } catch (err) {
+    console.error('Regenerate error:', err);
+    return res.status(500).json({ message: 'Regeneration failed' });
   }
 };
