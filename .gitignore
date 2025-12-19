@@ -5,7 +5,7 @@ yarn-error.log*
 
 # Environment
 .env
-
+backend/.env
 # Xenova / Transformers cache
 backend/node_modules/@xenova/
 backend/node_modules/@xenova/transformers/.cache/
